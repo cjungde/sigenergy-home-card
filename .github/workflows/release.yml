@@ -1,0 +1,21 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run build
+      # HACS looks for `filename` from hacs.json in the release assets.
+      - name: Attach built card to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/sigenergy-home-card.js

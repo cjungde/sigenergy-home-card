@@ -1,0 +1,6 @@
+{
+  "name": "Sigenergy Home Card",
+  "filename": "sigenergy-home-card.js",
+  "render_readme": false,
+  "homeassistant": "2024.8.0"
+}
