@@ -1,6 +1,6 @@
 {
   "name": "sigenergy-home-card",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Home Assistant Lovelace card that recreates the mySigen 'Home' energy-flow view for the Sigenergy Local Modbus integration.",
   "type": "module",
   "license": "MIT",

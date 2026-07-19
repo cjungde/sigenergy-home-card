@@ -39,7 +39,7 @@ export const DEFAULT_ENTITIES: SigenDefault[] = [
   { key: "ev_energy", entity: "sensor.sigen_ac_charger_total_energy_consumed", domain: "sensor" },
 ];
 
-export const CARD_VERSION = "0.1.0";
+export const CARD_VERSION = "0.1.1";
 
 /** Default idle threshold in watts (single source; used by setConfig + render). */
 export const DEFAULT_IDLE_THRESHOLD_W = 20;
