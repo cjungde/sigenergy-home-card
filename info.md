@@ -4,6 +4,8 @@ Animated **energy-flow card** that recreates the mySigen "Home" view for the
 [Sigenergy Local Modbus integration](https://github.com/TypQxQ/Sigenergy-Local-Modbus)
 (`sigen` domain) — as a real custom card, with **no `card-mod` or `mushroom-legacy-template-card`** to break on updates.
 
+![Sigenergy Home Card](https://raw.githubusercontent.com/cjungde/sigenergy-home-card/main/images/preview.png)
+
 ## Features
 
 - ⚡ Animated flows: solar, grid import/export, battery charge/discharge, house load, EV charger

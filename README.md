@@ -4,6 +4,10 @@ A Home Assistant Lovelace card that recreates the **mySigen "Home" energy-flow v
 [Sigenergy Local Modbus integration](https://github.com/TypQxQ/Sigenergy-Local-Modbus)
 (`sigen` domain).
 
+![Sigenergy Home Card](https://raw.githubusercontent.com/cjungde/sigenergy-home-card/main/images/preview.png)
+
+> The rendering above is a stylized preview; icons show as tinted Material Design icons in Home Assistant.
+
 Unlike the community YAML dashboards, this is a real custom card:
 
 - **No `card-mod` / `mushroom-legacy-template-card` dependency** — rendering is native SVG in a
