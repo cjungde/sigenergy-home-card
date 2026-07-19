@@ -6,23 +6,23 @@ A Home Assistant Lovelace card that recreates the **mySigen "Home" energy-flow v
 
 ![Sigenergy Home Card](https://raw.githubusercontent.com/cjungde/sigenergy-home-card/main/images/preview.png)
 
-> The rendering above is a stylized preview; icons show as tinted Material Design icons in Home Assistant.
+> Preview: live values overlaid on the bundled mySigen house render.
 
 Unlike the community YAML dashboards, this is a real custom card:
 
-- **No `card-mod` / `mushroom-legacy-template-card` dependency** — rendering is native SVG in a
+- **No `card-mod` / `mushroom-legacy-template-card` dependency** — a native custom element in a
   Shadow DOM, so Mushroom updates can never break it.
-- **Integrated imagery** — the setup preview and a stylized **isometric digital-twin backdrop**
-  (house + PV roof, Sigenstor tower, EV) are bundled as inline SVG; there are no `.png` files to
-  download into `/config/www`.
-- **Domain-colored, glowing flows** — each node ring/icon and its flow share a color (solar amber,
-  grid red, battery blue, home green, EV violet); idle nodes recede and active flows have a soft glow.
+- **mySigen "Home" look** — live values are overlaid on the official Sigenergy house render
+  (solar on the roof, home upper-right, battery/SoC centre, grid lower-right, EV in the garage),
+  exactly like the community dashboards.
+- **Bundled default background** — the mySigen loft render ships inside the card (inlined WebP,
+  nothing to copy to `/config/www`); override it per your setup with the `image` option.
+- **Domain-colored values** — solar amber, grid red/green, battery blue, home green, EV violet;
+  idle values dim automatically.
 - **Autofill config editor** — a visual editor with entity pickers that default to the real
   `sensor.sigen_*` entities, one click to fill them in. Works with renamed devices and
   third-party inverters because every field is overridable.
-- **Animated flows** — solar, grid import/export, battery charge/discharge, house load and EV
-  charger, with idle detection.
-- **Tap / hold → more-info** — tap any node to open the HA more-info dialog for its primary
+- **Tap / hold → more-info** — tap any value to open the HA more-info dialog for its primary
   entity; press-and-hold (500 ms) opens the secondary entity. Keyboard accessible (Tab + Enter).
 - **Localized (en / de)** — node labels and the editor follow `hass.language`; English and German
   ship built in, with an easy path to add more.
@@ -32,10 +32,8 @@ Unlike the community YAML dashboards, this is a real custom card:
 - **No-ESS / PV-only mode** — the battery node auto-hides when no battery entity is present (e.g.
   third-party inverter setups), and the EV node reflows into its place. Force it with `hide_battery`.
 
-> Status: **v0.1 feature-complete scaffold.** Flow rendering, editor with autofill + detect,
-> tap/hold dialogs, background artwork, en/de localization, multi-inverter/PV-string breakdown,
-> and no-ESS mode all work. Remaining before release: build verification on Node and real-device
-> testing — see [Roadmap](#roadmap).
+> Status: **v0.1 - build-verified.** Overlay card on the mySigen render, autofill + detect editor,
+> tap/hold dialogs, en/de localization, multi-inverter breakdown, and no-ESS mode all work.
 
 ### Node interactions
 
@@ -90,14 +88,24 @@ entities:
 | Option | Default | Description |
 |--------|---------|-------------|
 | `title` | – | Card header |
-| `entities` | see above | Map of flow node → entity_id |
+| `image` | bundled render | Background image URL/path (e.g. `/local/sigen/home.png`) — overrides the bundled mySigen render |
+| `entities` | see above | Map of overlay → entity_id |
 | `invert_battery` | `false` | Set if your `ess_power` is positive when charging |
-| `idle_threshold_w` | `20` | Watts below which a flow is treated as idle (no animation) |
-| `background` | `true` | Show the bundled background artwork (sun, pylon, battery tower, house) |
-| `background_opacity` | `1` | Artwork opacity, `0`–`1` |
-| `hide_battery` | `false` | Force-hide the battery node (no-ESS look); it also auto-hides when no battery entity exists |
+| `idle_threshold_w` | `20` | Watts below which a value is treated as idle (dimmed) |
+| `hide_battery` | `false` | Force-hide the battery overlay (no-ESS look); it also auto-hides when no battery entity exists |
 | `show_breakdown` | `false` | Show the per-inverter / per-PV-string breakdown below the diagram |
 | `inverters` | – | List of inverters + PV strings (use the editor's **Detect** button to fill) |
+
+### Background image
+
+The card ships with the official mySigen **loft** house render as the default background, inlined
+into the bundle. The value overlay positions are tuned to that render. To use a different
+background (a dark-theme render, a different house/system layout, or your own screenshot), set
+`image` to any URL or `/local/...` path — you may then want to nudge the overlay positions (a future
+option will expose them).
+
+Renders courtesy of the community image set at
+[vdvmichel/sigen-app-images](https://github.com/vdvmichel/sigen-app-images) (Sigenergy artwork).
 
 ### Inverter / PV-string breakdown
 
@@ -133,7 +141,7 @@ mySigen); flip with `invert_battery` if your firmware differs.
 
 ## Roadmap
 
-- [x] Bundled background artwork (inline SVG — sun, pylon, Sigenstor tower, house)
+- [x] mySigen house-render background with value overlays (bundled default + `image` override)
 - [x] Tap/hold → `more-info` dialogs per node
 - [x] Multi-inverter and PV-string breakdown (with auto-detect)
 - [x] Third-party-only inverter mode (no ESS) — auto-hide + `hide_battery`

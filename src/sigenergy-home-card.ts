@@ -1,4 +1,4 @@
-import { LitElement, html, css, svg, nothing, PropertyValues, TemplateResult } from "lit";
+import { LitElement, html, css, nothing, PropertyValues, TemplateResult } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import type { HomeAssistant, LovelaceCard, LovelaceCardEditor } from "custom-card-helpers";
 import {
@@ -8,7 +8,7 @@ import {
   InverterConfig,
   SigenCardConfig,
 } from "./const";
-import { backgroundDefs, backgroundLayer } from "./assets";
+import { DEFAULT_BACKGROUND } from "./default-bg";
 import { localize } from "./localize";
 
 interface CustomCardEntry {
@@ -19,18 +19,15 @@ interface CustomCardEntry {
   documentationURL?: string;
 }
 
-/** Clamp a number into the [0, 1] range (used for background opacity). */
-const clamp01 = (n: number): number => Math.min(1, Math.max(0, n));
-
-/** One flow-diagram node. `tap`/`hold` are the more-info entities (optional). */
-interface NodeSpec {
-  x: number;
-  y: number;
-  icon: string;
+/** A value overlay positioned (as %) on top of the background image. */
+interface OverlaySpec {
+  left: number;
+  top: number;
+  align?: "left" | "center" | "right";
+  color: string;
   label: string;
   value: string;
   active: boolean;
-  color: string;
   tap?: string;
   hold?: string;
 }
@@ -155,7 +152,7 @@ export class SigenergyHomeCard extends LitElement implements LovelaceCard {
   }
 
   private _nodeData(e: Event): { tap?: string; hold?: string } {
-    const el = (e.target as Element | null)?.closest?.(".node") as HTMLElement | null;
+    const el = (e.target as Element | null)?.closest?.(".ov") as HTMLElement | null;
     return { tap: el?.dataset.tap || undefined, hold: el?.dataset.hold || undefined };
   }
 
@@ -212,6 +209,25 @@ export class SigenergyHomeCard extends LitElement implements LovelaceCard {
     return this._usedEntityIds().some((id) => old.states[id] !== this.hass.states[id]);
   }
 
+  /** One positioned value overlay on top of the background image. */
+  private _overlay(o: OverlaySpec): TemplateResult {
+    const clickable = !!(o.tap || o.hold);
+    return html`
+      <div
+        class="ov ${o.active ? "active" : "idle"} ${clickable ? "clickable" : ""}"
+        style="left:${o.left}%;top:${o.top}%;text-align:${o.align ?? "left"};--ov-color:${o.color}"
+        role=${clickable ? "button" : nothing}
+        aria-label=${clickable ? `${o.label}: ${o.value}` : nothing}
+        tabindex=${clickable ? "0" : nothing}
+        data-tap=${o.tap ?? nothing}
+        data-hold=${o.hold ?? nothing}
+      >
+        <div class="ov-value">${o.value}</div>
+        <div class="ov-label">${o.label}</div>
+      </div>
+    `;
+  }
+
   protected render(): TemplateResult {
     if (!this._config || !this.hass) return html``;
 
@@ -231,111 +247,62 @@ export class SigenergyHomeCard extends LitElement implements LovelaceCard {
     const battId = this._id("battery_power");
     const hasBattery = !this._config.hide_battery && !!battId && !!this.hass.states[battId];
 
-    // battery > 0 => discharging (flows to home); < 0 => charging (flows from bus)
-    const batteryDischarge = hasBattery ? Math.max(0, battery) : 0;
-    const batteryCharge = hasBattery ? Math.max(0, -battery) : 0;
+    const image = this._config.image || DEFAULT_BACKGROUND;
 
-    // EV takes the battery slot when there is no battery, otherwise sits below Home.
-    const evY = hasBattery ? 300 : 210;
-    const evFromY = hasBattery ? 270 : 160;
-
-    // Ring/icon color is driven purely by the `.active`/`.idle` class + the
-    // `--node-color` custom property in CSS (review item #5). Pointer/keyboard
-    // handling is delegated on the <svg>; each node just carries its entities
-    // as data-* and a color token as a custom property.
-    const node = (n: NodeSpec) => {
-      const clickable = !!(n.tap || n.hold);
-      return svg`
-      <g
-        class="node ${n.active ? "active" : "idle"} ${clickable ? "clickable" : ""}"
-        transform="translate(${n.x},${n.y})"
-        style="--node-color:${n.color}"
-        role=${clickable ? "button" : "presentation"}
-        aria-label=${clickable ? `${n.label}: ${n.value}` : nothing}
-        tabindex=${clickable ? "0" : "-1"}
-        data-tap=${n.tap ?? nothing}
-        data-hold=${n.hold ?? nothing}
-      >
-        <circle r="34" class="node-bg" />
-        <g transform="translate(-12,-24)">
-          <ha-icon icon="${n.icon}"></ha-icon>
-        </g>
-        <text class="node-label" y="46">${n.label}</text>
-        <text class="node-value" y="62">${n.value}</text>
-      </g>`;
-    };
-
-    const flow = (x1: number, y1: number, x2: number, y2: number, on: boolean, cls: string) => {
-      const mx = (x1 + x2) / 2;
-      const d = `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`;
-      return svg`
-        <path class="flow-line ${cls}" d="${d}" />
-        ${on ? svg`<path class="flow-anim ${cls}" d="${d}" />` : ""}`;
-    };
-
+    // Overlay positions are percentages tuned to the bundled loft render. If you
+    // swap `image`, nudge these to match (they are the mySigen layout: solar on
+    // the roof, home at the upper right, battery/SoC centre, grid lower right,
+    // EV in the garage). Values are shown live; idle ones just dim.
     return html`
       <ha-card .header=${this._config.title}>
-        <div class="wrap">
-          <svg
-            viewBox="0 0 360 320"
-            class="diagram"
-            @pointerdown=${this._onPointerDown}
-            @pointerup=${this._onPointerUp}
-            @pointercancel=${this._onPointerCancel}
-            @pointerleave=${this._onPointerCancel}
-            @keydown=${this._onKeyDown}
-          >
-            ${backgroundDefs()}
-            ${this._config.background === false
-              ? svg``
-              : backgroundLayer(clamp01(this._config.background_opacity ?? 1), hasBattery)}
-            ${flow(180, 60, 180, 160, pv > idle, "solar")}
-            ${flow(60, 210, 180, 160, gridImport > idle, "grid-in")}
-            ${flow(180, 160, 60, 210, gridExport > idle, "grid-out")}
-            ${hasBattery ? flow(300, 210, 180, 160, batteryDischarge > idle, "batt-out") : ""}
-            ${hasBattery ? flow(180, 160, 300, 210, batteryCharge > idle, "batt-in") : ""}
-            ${flow(180, 160, 180, 270, load > idle, "load")}
-            ${ev > idle ? flow(180, evFromY, 300, evY, ev > idle, "ev") : ""}
+        <div
+          class="stage"
+          @pointerdown=${this._onPointerDown}
+          @pointerup=${this._onPointerUp}
+          @pointercancel=${this._onPointerCancel}
+          @pointerleave=${this._onPointerCancel}
+          @keydown=${this._onKeyDown}
+        >
+          <img class="bg" src=${image} alt="" />
 
-            ${node({
-              x: 180, y: 60, icon: "mdi:solar-power-variant", color: COLORS.solar,
-              label: this._t("node.solar"), value: this._fmt(pv), active: pv > idle,
-              tap: this._id("pv_power"), hold: this._id("pv_power_third_party"),
-            })}
-            ${node({
-              x: 60, y: 210, icon: "mdi:transmission-tower", color: COLORS.grid,
-              label: this._t("node.grid"),
-              // Signed: negative = exporting, positive = importing (_fmt keeps the sign).
-              value: this._fmt(gridExport > gridImport ? -gridExport : gridImport),
-              active: gridImport > idle || gridExport > idle,
-              tap: this._id("grid_import_power"), hold: this._id("grid_export_power"),
-            })}
-            ${hasBattery
-              ? node({
-                  x: 300, y: 210, icon: "mdi:battery-high", color: COLORS.battery,
-                  label: soc ? `${Math.round(parseFloat(soc))}%` : this._t("node.battery"),
-                  // battery is signed: >0 discharging, <0 charging.
-                  value: battery === 0 ? this._t("state.idle") : this._fmt(battery),
-                  active: batteryCharge > idle || batteryDischarge > idle,
-                  tap: this._id("battery_power"), hold: this._id("battery_soc"),
-                })
-              : svg``}
-            ${node({
-              x: 180, y: 270, icon: "mdi:home", color: COLORS.home,
-              label: this._t("node.home"), value: this._fmt(load), active: load > idle,
-              tap: this._id("load_power"), hold: this._id("ems_mode"),
-            })}
-            ${ev > idle
-              ? node({
-                  x: 300, y: evY, icon: "mdi:ev-station", color: COLORS.ev,
-                  label: this._t("node.ev"), value: this._fmt(ev), active: true,
-                  tap: this._id("ev_power"), hold: this._id("ev_energy"),
-                })
-              : svg``}
-          </svg>
-          ${ems ? html`<div class="ems">${ems}</div>` : ""}
-          ${this._renderBreakdown()}
+          ${ems ? html`<div class="ov-title">${ems}</div>` : nothing}
+
+          ${this._overlay({
+            left: 45, top: 15, align: "center", color: COLORS.solar,
+            label: this._t("node.solar"), value: this._fmt(pv), active: pv > idle,
+            tap: this._id("pv_power"), hold: this._id("pv_power_third_party"),
+          })}
+          ${this._overlay({
+            left: 80, top: 37, align: "center", color: COLORS.home,
+            label: this._t("node.home"), value: this._fmt(load), active: load > idle,
+            tap: this._id("load_power"), hold: this._id("ems_mode"),
+          })}
+          ${hasBattery
+            ? this._overlay({
+                left: 44, top: 70, align: "center", color: COLORS.battery,
+                label: soc ? `${Math.round(parseFloat(soc))}% · ${this._t("node.battery")}` : this._t("node.battery"),
+                value: battery === 0 ? this._t("state.idle") : this._fmt(battery),
+                active: Math.abs(battery) > idle,
+                tap: this._id("battery_power"), hold: this._id("battery_soc"),
+              })
+            : nothing}
+          ${this._overlay({
+            left: 78, top: 80, align: "center", color: COLORS.grid,
+            label: this._t("node.grid"),
+            // Signed: negative = exporting, positive = importing (_fmt keeps the sign).
+            value: this._fmt(gridExport > gridImport ? -gridExport : gridImport),
+            active: gridImport > idle || gridExport > idle,
+            tap: this._id("grid_import_power"), hold: this._id("grid_export_power"),
+          })}
+          ${ev > idle
+            ? this._overlay({
+                left: 13, top: 60, align: "center", color: COLORS.ev,
+                label: this._t("node.ev"), value: this._fmt(ev), active: true,
+                tap: this._id("ev_power"), hold: this._id("ev_energy"),
+              })
+            : nothing}
         </div>
+        ${this._renderBreakdown()}
       </ha-card>
     `;
   }
@@ -399,96 +366,66 @@ export class SigenergyHomeCard extends LitElement implements LovelaceCard {
     ha-card {
       overflow: hidden;
     }
-    .wrap {
+    /* Background image + absolutely-positioned value overlays (the mySigen look). */
+    .stage {
       position: relative;
-      padding: 8px 8px 12px;
+      width: 100%;
     }
-    .diagram {
+    .bg {
+      display: block;
       width: 100%;
       height: auto;
     }
-    .sig-artwork {
+    .ov-title {
+      position: absolute;
+      left: 50%;
+      top: 4%;
+      transform: translate(-50%, -50%);
+      font-size: clamp(11px, 3.2vw, 15px);
+      font-weight: 700;
+      color: var(--sig-solar);
+      text-align: center;
       pointer-events: none;
+      white-space: nowrap;
     }
-    .node-bg {
-      fill: var(--card-background-color, #fff);
-      stroke: var(--divider-color, #e0e0e0);
-      stroke-width: 2;
-      transition: stroke 0.3s ease, stroke-width 0.2s ease;
-    }
-    /* Idle nodes recede so the active flow reads at a glance (design item #2). */
-    .node.idle {
-      opacity: 0.55;
-    }
-    /* Active node uses its domain color (--node-color, set per node); idle keeps
-       the neutral divider stroke from .node-bg above (review item #5). */
-    .node.active .node-bg {
-      stroke: var(--node-color, var(--primary-color, #1a7f5a));
-      stroke-width: 2.5;
-    }
-    .node ha-icon {
-      --mdc-icon-size: 24px;
-      color: var(--secondary-text-color);
-    }
-    .node.active ha-icon {
-      color: var(--node-color, var(--primary-color, #1a7f5a));
-    }
-    .node.clickable {
-      cursor: pointer;
+    .ov {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      line-height: 1.15;
+      pointer-events: none;
       -webkit-tap-highlight-color: transparent;
     }
-    .node.clickable:hover {
-      opacity: 1;
+    .ov.clickable {
+      pointer-events: auto;
+      cursor: pointer;
     }
-    .node.clickable:hover .node-bg,
-    .node.clickable:focus-visible .node-bg {
-      stroke: var(--node-color, var(--primary-color, #1a7f5a));
-      stroke-width: 3;
+    .ov.idle {
+      opacity: 0.6;
     }
-    .node.clickable:focus-visible {
-      outline: none;
-    }
-    .node-label {
-      text-anchor: middle;
-      font-size: 11px;
-      fill: var(--secondary-text-color);
-    }
-    .node-value {
-      text-anchor: middle;
-      font-size: 12px;
+    .ov-value {
+      font-size: clamp(12px, 3.6vw, 17px);
       font-weight: 700;
-      fill: var(--primary-text-color);
+      color: var(--ov-color, var(--primary-text-color));
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+      white-space: nowrap;
     }
-    .flow-line {
-      fill: none;
-      stroke: var(--divider-color, #e0e0e0);
-      stroke-width: 2;
-      opacity: 0.5;
-    }
-    .flow-anim {
-      fill: none;
-      stroke-width: 3;
-      stroke-linecap: round;
-      stroke-dasharray: 4 14;
-      filter: url(#sig-flow-glow);
-      animation: dash 1.1s linear infinite;
-    }
-    .flow-anim.solar { stroke: var(--sig-solar); }
-    .flow-anim.grid-in { stroke: var(--sig-grid); }
-    .flow-anim.grid-out { stroke: var(--sig-grid-export); }
-    .flow-anim.batt-out { stroke: var(--sig-battery); }
-    .flow-anim.batt-in { stroke: var(--sig-battery-charge); }
-    .flow-anim.load { stroke: var(--sig-home); }
-    .flow-anim.ev { stroke: var(--sig-ev); }
-    @keyframes dash {
-      to { stroke-dashoffset: -36; }
-    }
-    .ems {
-      text-align: center;
-      font-size: 13px;
+    .ov-label {
+      font-size: clamp(9px, 2.6vw, 12px);
       font-weight: 600;
-      color: var(--primary-color, #1a7f5a);
-      margin-top: 4px;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      color: var(--secondary-text-color, #b0b0b0);
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+      white-space: nowrap;
+    }
+    .ov.clickable:hover .ov-value,
+    .ov.clickable:focus-visible .ov-value {
+      text-decoration: underline;
+    }
+    .ov.clickable:focus-visible {
+      outline: 2px solid var(--ov-color);
+      outline-offset: 2px;
+      border-radius: 4px;
     }
     .breakdown {
       margin-top: 10px;
@@ -547,9 +484,6 @@ export class SigenergyHomeCard extends LitElement implements LovelaceCard {
       text-align: right;
       font-variant-numeric: tabular-nums;
       color: var(--primary-text-color);
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .flow-anim { animation: none; }
     }
   `;
 }

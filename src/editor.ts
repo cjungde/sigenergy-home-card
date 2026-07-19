@@ -4,7 +4,7 @@ import type { HomeAssistant, LovelaceCardEditor } from "custom-card-helpers";
 import { DEFAULT_ENTITIES, SigenCardConfig } from "./const";
 import { localize } from "./localize";
 import { detectInverters } from "./detect";
-import { PREVIEW_IMAGE } from "./preview";
+import { DEFAULT_BACKGROUND } from "./default-bg";
 
 @customElement("sigenergy-home-card-editor")
 export class SigenergyHomeCardEditor extends LitElement implements LovelaceCardEditor {
@@ -65,6 +65,11 @@ export class SigenergyHomeCardEditor extends LitElement implements LovelaceCardE
     this._emit({ ...this._config, title: value || undefined });
   }
 
+  private _imageChanged(ev: Event): void {
+    const value = (ev.target as HTMLInputElement).value;
+    this._emit({ ...this._config, image: value || undefined });
+  }
+
   private _t(key: string): string {
     return localize(key, this.hass?.language);
   }
@@ -74,12 +79,19 @@ export class SigenergyHomeCardEditor extends LitElement implements LovelaceCardE
 
     return html`
       <div class="editor">
-        <img class="setup-image" src=${PREVIEW_IMAGE} alt="Sigenergy Home Card preview" />
+        <img class="setup-image" src=${this._config.image || DEFAULT_BACKGROUND} alt="Background preview" />
 
         <ha-textfield
           label=${this._t("editor.title")}
           .value=${this._config.title ?? ""}
           @input=${this._titleChanged}
+        ></ha-textfield>
+
+        <ha-textfield
+          label=${this._t("editor.image")}
+          .value=${this._config.image ?? ""}
+          .placeholder=${"/local/sigen/home.png"}
+          @input=${this._imageChanged}
         ></ha-textfield>
 
         <div class="row">
@@ -105,14 +117,6 @@ export class SigenergyHomeCardEditor extends LitElement implements LovelaceCardE
             .checked=${!!this._config.invert_battery}
             @change=${(e: Event) =>
               this._emit({ ...this._config, invert_battery: (e.target as HTMLInputElement).checked })}
-          ></ha-switch>
-        </ha-formfield>
-
-        <ha-formfield label=${this._t("editor.show_background")}>
-          <ha-switch
-            .checked=${this._config.background !== false}
-            @change=${(e: Event) =>
-              this._emit({ ...this._config, background: (e.target as HTMLInputElement).checked })}
           ></ha-switch>
         </ha-formfield>
 

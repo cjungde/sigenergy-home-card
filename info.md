@@ -1,20 +1,21 @@
 # Sigenergy Home Card
 
-Animated **energy-flow card** that recreates the mySigen "Home" view for the
+**Energy-flow card** that recreates the mySigen "Home" view for the
 [Sigenergy Local Modbus integration](https://github.com/TypQxQ/Sigenergy-Local-Modbus)
-(`sigen` domain) — as a real custom card, with **no `card-mod` or `mushroom-legacy-template-card`** to break on updates.
+(`sigen` domain) — live values overlaid on the Sigenergy house render, as a real custom card with
+**no `card-mod` or `mushroom-legacy-template-card`** to break on updates.
 
 ![Sigenergy Home Card](https://raw.githubusercontent.com/cjungde/sigenergy-home-card/main/images/preview.png)
 
 ## Features
 
-- ⚡ Animated flows: solar, grid import/export, battery charge/discharge, house load, EV charger
+- 🏠 Values overlaid on the mySigen house render (bundled default; override with `image`)
 - 🪄 **Autofill** — one click fills the real `sensor.sigen_*` entities (overridable per field)
 - 👆 Tap → more-info, hold → secondary entity (keyboard accessible)
-- 🎨 Bundled background artwork + integrated setup preview image — nothing to copy to `/config/www`
+- 🎨 Bundled render inlined — nothing to copy to `/config/www`
 - 🌍 English + German (follows `hass.language`)
 - 🔆 Multi-inverter & per-PV-string breakdown with **Detect** auto-scan
-- 🔋 No-ESS / PV-only mode (battery node auto-hides)
+- 🔋 No-ESS / PV-only mode (battery overlay auto-hides)
 
 ## Setup
 

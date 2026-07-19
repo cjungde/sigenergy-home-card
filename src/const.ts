@@ -75,15 +75,13 @@ export const RE_PV_STRING = /^sensor\.sigen_inverter_(\d+)_pv(\d+)_power$/;
 export interface SigenCardConfig {
   type: string;
   title?: string;
+  /** background image URL/path; defaults to the bundled mySigen house render */
+  image?: string;
   /** invert battery sign if your value is positive-on-charge */
   invert_battery?: boolean;
-  /** watt threshold below which a flow is treated as idle (no animation) */
+  /** watt threshold below which a value is treated as idle (dimmed) */
   idle_threshold_w?: number;
-  /** show the bundled background artwork (default true) */
-  background?: boolean;
-  /** artwork opacity 0..1 (default 1) */
-  background_opacity?: number;
-  /** force-hide the battery node even if a battery entity exists (no-ESS look) */
+  /** force-hide the battery overlay even if a battery entity exists (no-ESS look) */
   hide_battery?: boolean;
   /** show the per-inverter / per-PV-string breakdown below the flow diagram */
   show_breakdown?: boolean;
